@@ -28,6 +28,7 @@ require (
 	github.com/clipperhouse/stringish v0.1.1 // indirect
 	github.com/clipperhouse/uax29/v2 v2.5.0 // indirect
 	github.com/dlclark/regexp2 v1.11.4 // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect

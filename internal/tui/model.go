@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/filepicker"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
@@ -25,12 +27,21 @@ const (
 	screenSearch screen = iota
 	screenResults
 	screenDownloading
+	screenFilePicker
+)
+
+const (
+	focusAPIKey = iota
+	focusKeyword
+	focusPlatform
+	focusQuality
+	focusOutput
+	focusCount
 )
 
 type model struct {
-	th     *tunehub.Client
-	dl     *download.Downloader
-	outDir string
+	th *tunehub.Client
+	dl *download.Downloader
 
 	w int
 	h int
@@ -40,18 +51,21 @@ type model struct {
 	platIdx   int
 	qualIdx   int
 
-	apiKey  textinput.Model
-	keyword textinput.Model
+	apiKey     textinput.Model
+	keyword    textinput.Model
+	outDirInput textinput.Model
 
 	list     list.Model
 	delegate *resultDelegate
+	picker   filepicker.Model
 	spinner  spinner.Model
 	progress progress.Model
 
-	screen  screen
-	loading bool
-	errMsg  string
-	status  string
+	screen   screen
+	focusIdx int
+	loading  bool
+	errMsg   string
+	status   string
 
 	dlCh    chan tea.Msg
 	dlBytes int64
@@ -103,19 +117,31 @@ func (i listItem) FilterValue() string {
 func New(th *tunehub.Client, dl *download.Downloader, outDir string) tea.Model {
 	api := textinput.New()
 	api.Placeholder = "TUNEHUB API Key (th_...)"
-	api.Prompt = "API Key: "
+	api.Prompt = "API Key:  "
 	api.EchoMode = textinput.EchoPassword
 	api.EchoCharacter = '*'
 	api.SetValue(strings.TrimSpace(os.Getenv("TUNEHUB_API_KEY")))
-	api.Focus()
 
 	kw := textinput.New()
 	kw.Placeholder = "Keyword"
-	kw.Prompt = "Search: "
+	kw.Prompt = "Search:   "
+
+	od := textinput.New()
+	od.Placeholder = "Download directory"
+	od.Prompt = "Output:   "
+	od.SetValue(outDir)
+
+	initFocus := focusAPIKey
+	if strings.TrimSpace(api.Value()) != "" {
+		initFocus = focusKeyword
+		kw.Focus()
+	} else {
+		api.Focus()
+	}
 
 	sp := spinner.New()
-	sp.Spinner = spinner.Line
-	sp.Style = faintStyle
+	sp.Spinner = spinner.MiniDot
+	sp.Style = lipgloss.NewStyle().Foreground(colorCyan)
 
 	del := newResultDelegate()
 	l := list.New(nil, del, 0, 0)
@@ -126,9 +152,9 @@ func New(th *tunehub.Client, dl *download.Downloader, outDir string) tea.Model {
 	l.SetShowHelp(false)
 	l.SetFilteringEnabled(true)
 	l.FilterInput.Prompt = "Filter: "
-	l.FilterInput.PromptStyle = lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
+	l.FilterInput.PromptStyle = lipgloss.NewStyle().Foreground(colorMagenta).Bold(true)
 	l.FilterInput.TextStyle = valueStyle
-	l.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
+	l.FilterInput.Cursor.Style = lipgloss.NewStyle().Foreground(colorCyan).Bold(true)
 	// Avoid conflicting with our back key.
 	l.KeyMap.PrevPage = key.NewBinding(
 		key.WithKeys("left", "h", "pgup", "u"),
@@ -136,27 +162,52 @@ func New(th *tunehub.Client, dl *download.Downloader, outDir string) tea.Model {
 	)
 
 	p := progress.New(
-		progress.WithFillCharacters('#', '-'),
-		progress.WithSolidFill("#00A3CC"),
+		progress.WithFillCharacters('█', '░'),
+		progress.WithScaledGradient("#00FFFF", "#FF00FF"),
 		progress.WithoutPercentage(),
 	)
-	p.EmptyColor = "#3C3C3C"
-	// Percentage is rendered by us for tighter control.
+	p.EmptyColor = "#1A1A2E"
+
+	fp := filepicker.New()
+	if abs, err := filepath.Abs(outDir); err == nil {
+		fp.CurrentDirectory = abs
+	} else {
+		fp.CurrentDirectory = outDir
+	}
+	fp.DirAllowed = true
+	fp.FileAllowed = false
+	fp.ShowPermissions = false
+	fp.ShowSize = false
+	fp.ShowHidden = false
+	fp.AutoHeight = false
+	fp.Cursor = "▸"
+	fp.Styles.Cursor = lipgloss.NewStyle().Foreground(colorMagenta).Bold(true)
+	fp.Styles.Directory = lipgloss.NewStyle().Foreground(colorCyan).Bold(true)
+	fp.Styles.File = faintStyle
+	fp.Styles.Selected = lipgloss.NewStyle().Foreground(colorCyan).Bold(true).Underline(true)
+	fp.Styles.Symlink = lipgloss.NewStyle().Foreground(colorMagenta).Italic(true)
+	fp.Styles.EmptyDirectory = faintStyle
+	fp.Styles.DisabledFile = faintStyle
+	fp.Styles.DisabledCursor = faintStyle
+	fp.Styles.DisabledSelected = faintStyle
+	fp.KeyMap.Back = key.NewBinding(key.WithKeys("h", "backspace", "left"), key.WithHelp("←", "back"))
 
 	m := &model{
-		th:        th,
-		dl:        dl,
-		outDir:    outDir,
-		w:         80,
-		h:         24,
-		platforms: []string{"netease", "qq", "kuwo"},
-		qualities: []string{"320k", "128k", "flac", "flac24bit"},
-		apiKey:    api,
-		keyword:   kw,
-		spinner:   sp,
-		list:      l,
-		delegate:  del,
-		progress:  p,
+		th:          th,
+		dl:          dl,
+		w:           80,
+		h:           24,
+		platforms:   []string{"netease", "qq", "kuwo"},
+		qualities:   []string{"320k", "128k", "flac", "flac24bit"},
+		focusIdx:    initFocus,
+		apiKey:      api,
+		keyword:     kw,
+		outDirInput: od,
+		spinner:     sp,
+		list:        l,
+		delegate:    del,
+		picker:      fp,
+		progress:    p,
 		screen:    screenSearch,
 	}
 	m.applyInputStyles()
@@ -176,8 +227,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.onResize()
 		return m, nil
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
+		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
 	}
@@ -189,6 +239,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateResults(msg)
 	case screenDownloading:
 		return m.updateDownloading(msg)
+	case screenFilePicker:
+		return m.updateFilePicker(msg)
 	default:
 		return m, nil
 	}
@@ -202,6 +254,8 @@ func (m *model) View() string {
 		return m.viewResults()
 	case screenDownloading:
 		return m.viewDownloading()
+	case screenFilePicker:
+		return m.viewFilePicker()
 	default:
 		return ""
 	}
@@ -235,23 +289,42 @@ func (m *model) updateSearch(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "tab":
-			if m.apiKey.Focused() {
-				m.apiKey.Blur()
-				m.keyword.Focus()
-			} else {
-				m.keyword.Blur()
-				m.apiKey.Focus()
-			}
-			m.applyInputStyles()
+		case "esc":
+			return m, tea.Quit
+		case "tab", "down":
+			m.focusIdx = (m.focusIdx + 1) % focusCount
+			m.syncFocus()
+			return m, nil
+		case "shift+tab", "up":
+			m.focusIdx = (m.focusIdx + focusCount - 1) % focusCount
+			m.syncFocus()
+			return m, nil
 		case "left":
-			m.platIdx = (m.platIdx + len(m.platforms) - 1) % len(m.platforms)
+			switch m.focusIdx {
+			case focusPlatform:
+				m.platIdx = (m.platIdx + len(m.platforms) - 1) % len(m.platforms)
+			case focusQuality:
+				m.qualIdx = (m.qualIdx + len(m.qualities) - 1) % len(m.qualities)
+			}
 		case "right":
-			m.platIdx = (m.platIdx + 1) % len(m.platforms)
-		case "up":
-			m.qualIdx = (m.qualIdx + len(m.qualities) - 1) % len(m.qualities)
-		case "down":
-			m.qualIdx = (m.qualIdx + 1) % len(m.qualities)
+			switch m.focusIdx {
+			case focusPlatform:
+				m.platIdx = (m.platIdx + 1) % len(m.platforms)
+			case focusQuality:
+				m.qualIdx = (m.qualIdx + 1) % len(m.qualities)
+			}
+		case "b":
+			if m.focusIdx == focusOutput {
+				dir := strings.TrimSpace(m.outDirInput.Value())
+				if abs, err := filepath.Abs(dir); err == nil {
+					m.picker.CurrentDirectory = abs
+				} else {
+					m.picker.CurrentDirectory = dir
+				}
+				m.screen = screenFilePicker
+				m.onResize()
+				return m, m.picker.Init()
+			}
 		case "enter":
 			kw := strings.TrimSpace(m.keyword.Value())
 			if kw == "" {
@@ -272,6 +345,8 @@ func (m *model) updateSearch(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 	m.keyword, cmd = m.keyword.Update(msg)
 	cmds = append(cmds, cmd)
+	m.outDirInput, cmd = m.outDirInput.Update(msg)
+	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
 }
@@ -283,10 +358,9 @@ func (m *model) updateResults(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.screen = screenSearch
 			return m, nil
 		case "esc":
-			// Let list handle esc for filtering/clearing; only treat as back when unfiltered.
+			// Let list handle esc for filtering/clearing; only quit when unfiltered.
 			if m.list.FilterState() == list.Unfiltered {
-				m.screen = screenSearch
-				return m, nil
+				return m, tea.Quit
 			}
 		case "enter":
 			if m.list.FilterState() == list.Filtering {
@@ -346,7 +420,9 @@ func (m *model) updateDownloading(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "esc", "b":
+		case "esc":
+			return m, tea.Quit
+		case "b":
 			m.errMsg = "Cancel not implemented (download continues in background)"
 			m.screen = screenResults
 			m.onResize()
@@ -357,8 +433,54 @@ func (m *model) updateDownloading(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmd, listenMsg(m.dlCh))
 }
 
+func (m *model) updateFilePicker(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if msg, ok := msg.(tea.KeyMsg); ok {
+		switch msg.String() {
+		case "b":
+			m.screen = screenSearch
+			m.onResize()
+			return m, nil
+		}
+	}
+
+	var cmd tea.Cmd
+	m.picker, cmd = m.picker.Update(msg)
+
+	if didSelect, path := m.picker.DidSelectFile(msg); didSelect {
+		m.outDirInput.SetValue(path)
+		m.screen = screenSearch
+		m.onResize()
+		return m, nil
+	}
+
+	return m, cmd
+}
+
+func (m *model) viewFilePicker() string {
+	padX, padY, w, h := m.layout()
+	container := lipgloss.NewStyle().Padding(padY, padX)
+	if w < 24 || h < 10 {
+		return container.Render("Terminal too small. Press q to quit.")
+	}
+
+	left := headerTitleStyle.Render(">> kotodama-kamataichi") + headerSubStyle.Render(" // browse")
+	right := headerFillStyle.Render("")
+
+	pathLine := labelStyle.Render("  ") + valueStyle.Render(m.picker.CurrentDirectory)
+
+	lines := []string{
+		renderHeader(w, left, right),
+		renderDivider(w),
+		pathLine,
+		renderPanel("", w, m.picker.View()),
+		renderFooterKeys(w, "Enter", "select", "b", "back", "↑↓", "navigate", "→/←", "open/parent"),
+	}
+	return container.Render(strings.Join(filterEmpty(lines), "\n"))
+}
+
 func (m *model) startDownload(apiKey, platform, quality string, it tunehub.SearchItem) {
 	m.screen = screenDownloading
+	m.loading = true
 	m.errMsg = ""
 	m.status = fmt.Sprintf("Parse and download: %s - %s", it.Name, it.Artist)
 	m.dlBytes = 0
@@ -394,7 +516,7 @@ func (m *model) startDownload(apiKey, platform, quality string, it tunehub.Searc
 			return
 		}
 
-		res, err := m.dl.DownloadSong(ctx, m.outDir, pi, func(p download.Progress) {
+		res, err := m.dl.DownloadSong(ctx, m.outDirInput.Value(), pi, func(p download.Progress) {
 			select {
 			case ch <- downloadProgressMsg{kind: p.Kind, bytes: p.Bytes, total: p.Total}:
 			default:
@@ -434,18 +556,16 @@ func (m *model) viewSearch() string {
 		return container.Render("Terminal too small. Press q to quit.")
 	}
 
-	left := headerTitleStyle.Render("kotodama-kamataichi") + headerSubStyle.Render("  search")
+	left := headerTitleStyle.Render(">> kotodama-kamataichi") + headerSubStyle.Render(" // search")
 	right := headerLabelStyle.Render("P:") + headerFillStyle.Render(" ") + headerValueStyle.Render(m.platforms[m.platIdx]) + headerFillStyle.Render("  ") + headerLabelStyle.Render("Q:") + headerFillStyle.Render(" ") + headerValueStyle.Render(m.qualities[m.qualIdx])
 
 	form := strings.Join([]string{
 		m.apiKey.View(),
 		m.keyword.View(),
-		"",
-		renderChips("Platform", m.platforms, m.platIdx),
-		renderChips("Quality", m.qualities, m.qualIdx),
-		"",
-		labelStyle.Render("Output:") + " " + valueStyle.Render(m.outDir),
-	}, "\n")
+		renderSelector("Platform: ", m.platforms, m.platIdx, m.focusIdx == focusPlatform),
+		renderSelector("Quality:  ", m.qualities, m.qualIdx, m.focusIdx == focusQuality),
+		m.outDirInput.View(),
+	}, "\n\n")
 
 	lines := []string{
 		renderHeader(w, left, right),
@@ -458,7 +578,11 @@ func (m *model) viewSearch() string {
 	if m.errMsg != "" {
 		lines = append(lines, renderErrorLine(m.errMsg))
 	}
-	lines = append(lines, renderFooter(w, "Enter search  Tab field  Arrows platform/quality  q quit"))
+	if m.focusIdx == focusOutput {
+		lines = append(lines, renderFooterKeys(w, "b", "browse", "↑↓", "cycle", "Esc", "quit"))
+	} else {
+		lines = append(lines, renderFooterKeys(w, "Enter", "search", "↑↓", "cycle", "←→", "switch", "Esc", "quit"))
+	}
 
 	return container.Render(strings.Join(filterEmpty(lines), "\n"))
 }
@@ -470,7 +594,7 @@ func (m *model) viewResults() string {
 		return container.Render("Terminal too small. Press q to quit.")
 	}
 
-	left := headerTitleStyle.Render("kotodama-kamataichi") + headerSubStyle.Render("  results")
+	left := headerTitleStyle.Render(">> kotodama-kamataichi") + headerSubStyle.Render(" // results")
 	right := headerLabelStyle.Render("P:") + headerFillStyle.Render(" ") + headerValueStyle.Render(m.platforms[m.platIdx]) + headerFillStyle.Render("  ") + headerLabelStyle.Render("Q:") + headerFillStyle.Render(" ") + headerValueStyle.Render(m.qualities[m.qualIdx])
 
 	listView := m.list.View()
@@ -489,7 +613,7 @@ func (m *model) viewResults() string {
 	if m.errMsg != "" {
 		lines = append(lines, renderErrorLine(m.errMsg))
 	}
-	lines = append(lines, renderFooter(w, "Enter download  / filter  Esc clear  b back  q quit"))
+	lines = append(lines, renderFooterKeys(w, "Enter", "download", "/", "filter", "b", "back", "Esc", "quit"))
 
 	return container.Render(strings.Join(filterEmpty(lines), "\n"))
 }
@@ -501,12 +625,13 @@ func (m *model) viewDownloading() string {
 		return container.Render("Terminal too small. Press q to quit.")
 	}
 
-	left := headerTitleStyle.Render("kotodama-kamataichi") + headerSubStyle.Render("  downloading")
+	left := headerTitleStyle.Render(">> kotodama-kamataichi") + headerSubStyle.Render(" // downloading")
 	right := headerLabelStyle.Render("P:") + headerFillStyle.Render(" ") + headerValueStyle.Render(m.platforms[m.platIdx]) + headerFillStyle.Render("  ") + headerLabelStyle.Render("Q:") + headerFillStyle.Render(" ") + headerValueStyle.Render(m.qualities[m.qualIdx])
 
 	pct := percent(m.dlBytes, m.dlTotal)
 	bar := m.progress.ViewAs(pct)
-	progLine := faintStyle.Render("[") + bar + faintStyle.Render("]") + " " + valueStyle.Render(fmt.Sprintf("%3.0f%%", pct*100))
+	pctStyle := lipgloss.NewStyle().Foreground(colorCyan).Bold(true)
+	progLine := bar + " " + pctStyle.Render(fmt.Sprintf("%3.0f%%", pct*100))
 
 	bytesLine := renderCompactSize(m.dlBytes, m.dlTotal)
 	if bytesLine != "" {
@@ -523,34 +648,53 @@ func (m *model) viewDownloading() string {
 		renderHeader(w, left, right),
 		renderDivider(w),
 		panel,
-		renderFooter(w, "b back (continues)  q quit"),
+		renderFooterKeys(w, "b", "back", "Esc", "quit"),
 	}
 	return container.Render(strings.Join(filterEmpty(lines), "\n"))
 }
 
+func (m *model) syncFocus() {
+	m.apiKey.Blur()
+	m.keyword.Blur()
+	m.outDirInput.Blur()
+	switch m.focusIdx {
+	case focusAPIKey:
+		m.apiKey.Focus()
+	case focusKeyword:
+		m.keyword.Focus()
+	case focusOutput:
+		m.outDirInput.Focus()
+	}
+	m.applyInputStyles()
+}
+
 func (m *model) applyInputStyles() {
-	focused := lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
+	focused := lipgloss.NewStyle().Foreground(colorCyan).Bold(true)
 	blurred := lipgloss.NewStyle().Foreground(colorMuted)
 
-	if m.apiKey.Focused() {
+	if m.focusIdx == focusAPIKey {
 		m.apiKey.PromptStyle = focused
-		m.apiKey.TextStyle = valueStyle
-		m.apiKey.PlaceholderStyle = faintStyle
 	} else {
 		m.apiKey.PromptStyle = blurred
-		m.apiKey.TextStyle = valueStyle
-		m.apiKey.PlaceholderStyle = faintStyle
 	}
+	m.apiKey.TextStyle = valueStyle
+	m.apiKey.PlaceholderStyle = faintStyle
 
-	if m.keyword.Focused() {
+	if m.focusIdx == focusKeyword {
 		m.keyword.PromptStyle = focused
-		m.keyword.TextStyle = valueStyle
-		m.keyword.PlaceholderStyle = faintStyle
 	} else {
 		m.keyword.PromptStyle = blurred
-		m.keyword.TextStyle = valueStyle
-		m.keyword.PlaceholderStyle = faintStyle
 	}
+	m.keyword.TextStyle = valueStyle
+	m.keyword.PlaceholderStyle = faintStyle
+
+	if m.focusIdx == focusOutput {
+		m.outDirInput.PromptStyle = focused
+	} else {
+		m.outDirInput.PromptStyle = blurred
+	}
+	m.outDirInput.TextStyle = valueStyle
+	m.outDirInput.PlaceholderStyle = faintStyle
 }
 
 func (m *model) layout() (padX, padY, contentW, contentH int) {
@@ -593,6 +737,7 @@ func (m *model) onResize() {
 		}
 		m.apiKey.Width = inputW
 		m.keyword.Width = inputW
+		m.outDirInput.Width = inputW
 		// Reserve space for "[" "]" + percent.
 		m.progress.Width = max(10, contentW-12)
 	}
@@ -624,6 +769,13 @@ func (m *model) onResize() {
 	}
 
 	m.list.SetSize(listW, listH)
+
+	// filepicker height: header + divider + pathLine + panel borders + footer = 6 lines
+	pickerH := contentH - 6
+	if pickerH < 3 {
+		pickerH = 3
+	}
+	m.picker.SetHeight(pickerH)
 }
 
 func filterEmpty(lines []string) []string {
@@ -652,11 +804,4 @@ func percent(bytes, total int64) float64 {
 		return 1
 	}
 	return p
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

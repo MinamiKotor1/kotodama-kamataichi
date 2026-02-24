@@ -61,10 +61,10 @@ func (d *resultDelegate) Render(w io.Writer, m list.Model, index int, item list.
 		titleStyle = faintStyle
 		descStyle = faintStyle
 	} else if isSelected {
-		prefix = "> "
-		prefixStyle = lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
-		titleStyle = lipgloss.NewStyle().Foreground(colorAccent).Bold(true)
-		descStyle = labelStyle
+		prefix = "▸ "
+		prefixStyle = lipgloss.NewStyle().Foreground(colorMagenta).Bold(true)
+		titleStyle = lipgloss.NewStyle().Foreground(colorCyan).Bold(true)
+		descStyle = lipgloss.NewStyle().Foreground(colorMuted)
 	}
 
 	textW := m.Width() - lipgloss.Width(prefix)

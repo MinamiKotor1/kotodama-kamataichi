@@ -66,6 +66,6 @@ internal/
 - **Error handling**: return early, wrap with `%w`, show user-facing errors in TUI
 - **HTTP**: always `defer res.Body.Close()`, validate 2xx status, bound reads with `io.LimitReader`
 - **Timeouts**: search 20s, download 2min, parse 25s, JS sandbox 250ms, template eval 50ms
-- **TUI**: ASCII-only borders (no Unicode spinners), call `m.onResize()` after layout changes, avoid composing multiple `Style.Render()` with backgrounds
+- **TUI**: Unicode double-line borders (╔═╗║╚╝), cyberpunk color scheme (neon cyan/magenta), call `m.onResize()` after layout changes, avoid composing multiple `Style.Render()` with backgrounds
 - **Filenames**: sanitized to max 120 chars, illegal characters stripped
 - **Comments/docs**: non-required comments forbidden; code self-documents

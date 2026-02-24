@@ -8,53 +8,37 @@ import (
 )
 
 var (
-	colorAccent = lipgloss.Color("39")
-	colorBg     = lipgloss.Color("24")
-	colorFg     = lipgloss.Color("252")
-	colorMuted  = lipgloss.Color("245")
-	colorFaint  = lipgloss.Color("240")
-	colorError  = lipgloss.Color("9")
-	colorOK     = lipgloss.Color("10")
-	colorWarn   = lipgloss.Color("208")
+	colorCyan     = lipgloss.Color("#00FFFF")
+	colorMagenta  = lipgloss.Color("#FF00FF")
+	colorGreen    = lipgloss.Color("#39FF14")
+	colorHotPink  = lipgloss.Color("#FF2E97")
+	colorAmber    = lipgloss.Color("#FFB000")
+	colorBgHeader = lipgloss.Color("#1A0A2E")
+	colorFg       = lipgloss.Color("#E0E0E0")
+	colorMuted    = lipgloss.Color("#6B7280")
+	colorFaint    = lipgloss.Color("#374151")
+	colorBorder   = lipgloss.Color("#00BFFF")
 )
 
-var asciiBorder = lipgloss.Border{
-	Top:          "-",
-	Bottom:       "-",
-	Left:         "|",
-	Right:        "|",
-	TopLeft:      "+",
-	TopRight:     "+",
-	BottomLeft:   "+",
-	BottomRight:  "+",
-	MiddleLeft:   "+",
-	MiddleRight:  "+",
-	Middle:       "+",
-	MiddleTop:    "+",
-	MiddleBottom: "+",
-}
-
 var (
-	headerFillStyle  = lipgloss.NewStyle().Background(colorBg)
-	headerTitleStyle = headerFillStyle.Copy().Foreground(colorAccent).Bold(true)
-	headerSubStyle   = headerFillStyle.Copy().Foreground(colorMuted)
-	headerLabelStyle = headerFillStyle.Copy().Foreground(colorMuted)
-	headerValueStyle = headerFillStyle.Copy().Foreground(lipgloss.Color("231")).Bold(true)
+	headerFillStyle  = lipgloss.NewStyle().Background(colorBgHeader)
+	headerTitleStyle = headerFillStyle.Foreground(colorCyan).Bold(true)
+	headerSubStyle   = headerFillStyle.Foreground(colorMagenta)
+	headerLabelStyle = headerFillStyle.Foreground(colorMuted)
+	headerValueStyle = headerFillStyle.Foreground(colorCyan).Bold(true)
 
-	footerBarStyle = lipgloss.NewStyle().Foreground(colorMuted)
-
-	panelStyle      = lipgloss.NewStyle().Border(asciiBorder).BorderForeground(colorFaint).Padding(0, 1)
-	panelTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(colorAccent)
-
-	chipActiveStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("231")).Background(colorAccent).Bold(true).Padding(0, 1)
-	chipInactiveStyle = lipgloss.NewStyle().Foreground(colorMuted).Padding(0, 1)
+	panelStyle      = lipgloss.NewStyle().Border(lipgloss.DoubleBorder()).BorderForeground(colorBorder).Padding(0, 1)
+	panelTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(colorMagenta)
 
 	labelStyle = lipgloss.NewStyle().Foreground(colorMuted)
 	valueStyle = lipgloss.NewStyle().Foreground(colorFg)
 	faintStyle = lipgloss.NewStyle().Foreground(colorFaint)
-	infoStyle  = lipgloss.NewStyle().Foreground(colorWarn)
-	errorStyle = lipgloss.NewStyle().Foreground(colorError)
-	okStyle    = lipgloss.NewStyle().Foreground(colorOK)
+	infoStyle  = lipgloss.NewStyle().Foreground(colorAmber)
+	errorStyle = lipgloss.NewStyle().Foreground(colorHotPink)
+	okStyle    = lipgloss.NewStyle().Foreground(colorGreen)
+
+	footerKeyStyle  = lipgloss.NewStyle().Foreground(colorCyan).Bold(true)
+	footerDescStyle = lipgloss.NewStyle().Foreground(colorFaint)
 )
 
 func renderHeader(width int, left, right string) string {
@@ -72,17 +56,19 @@ func renderDivider(width int) string {
 	if width <= 0 {
 		return ""
 	}
-	return faintStyle.Render(strings.Repeat("-", width))
+	return lipgloss.NewStyle().Foreground(colorBorder).Render(strings.Repeat("═", width))
 }
 
-func renderFooter(width int, s string) string {
-	if strings.TrimSpace(s) == "" {
-		return ""
+func renderFooterKeys(width int, pairs ...string) string {
+	parts := make([]string, 0, len(pairs)/2)
+	for i := 0; i+1 < len(pairs); i += 2 {
+		parts = append(parts, footerKeyStyle.Render(pairs[i])+" "+footerDescStyle.Render(pairs[i+1]))
 	}
-	if width <= 0 {
-		return footerBarStyle.Render(s)
+	line := strings.Join(parts, footerDescStyle.Render("  "))
+	if width > 0 {
+		return lipgloss.NewStyle().Width(width).Render(line)
 	}
-	return footerBarStyle.Width(width).Render(s)
+	return line
 }
 
 func renderPanel(title string, width int, content string) string {
@@ -97,16 +83,26 @@ func renderPanel(title string, width int, content string) string {
 	return s.Render(body)
 }
 
-func renderChips(label string, items []string, activeIdx int) string {
+func renderSelector(prompt string, items []string, activeIdx int, focused bool) string {
 	parts := make([]string, 0, len(items))
 	for i, it := range items {
 		if i == activeIdx {
-			parts = append(parts, chipActiveStyle.Render(it))
-			continue
+			if focused {
+				parts = append(parts, lipgloss.NewStyle().Foreground(colorCyan).Bold(true).Render(it))
+			} else {
+				parts = append(parts, valueStyle.Render(it))
+			}
+		} else {
+			parts = append(parts, faintStyle.Render(it))
 		}
-		parts = append(parts, chipInactiveStyle.Render(it))
 	}
-	return labelStyle.Render(label+":") + " " + strings.Join(parts, " ")
+	ps := lipgloss.NewStyle().Foreground(colorMuted)
+	arrow := lipgloss.NewStyle().Foreground(colorMuted)
+	if focused {
+		ps = lipgloss.NewStyle().Foreground(colorCyan).Bold(true)
+		return ps.Render(prompt) + arrow.Render("◄ ") + strings.Join(parts, "  ") + arrow.Render(" ►")
+	}
+	return ps.Render(prompt) + strings.Join(parts, "  ")
 }
 
 func renderStatusLine(s string) string {
