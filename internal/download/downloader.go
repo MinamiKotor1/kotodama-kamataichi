@@ -84,7 +84,7 @@ func (d *Downloader) DownloadSong(ctx context.Context, rootDir string, item tune
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		return downloadFile(gctx, d.http(), item.URL, audioPath, item.FileSize, func(p Progress) {
+		return downloadWithRetry(gctx, d.http(), item.URL, audioPath, item.FileSize, func(p Progress) {
 			p.Kind = "audio"
 			if onProgress != nil {
 				onProgress(p)
@@ -93,7 +93,7 @@ func (d *Downloader) DownloadSong(ctx context.Context, rootDir string, item tune
 	})
 	if coverURL != "" {
 		g.Go(func() error {
-			return downloadFile(gctx, d.http(), coverURL, coverPath, 0, func(p Progress) {
+			return downloadWithRetry(gctx, d.http(), coverURL, coverPath, 0, func(p Progress) {
 				p.Kind = "cover"
 				if onProgress != nil {
 					onProgress(p)
@@ -157,6 +157,49 @@ func coverExtFromURL(raw string) string {
 	return ".jpg"
 }
 
+const (
+	maxRetries    = 3
+	retryBaseWait = time.Second
+)
+
+type httpStatusError struct {
+	code int
+}
+
+func (e *httpStatusError) Error() string {
+	return fmt.Sprintf("http %d", e.code)
+}
+
+func isRetryable(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	var se *httpStatusError
+	if errors.As(err, &se) {
+		return se.code >= 500
+	}
+	return true
+}
+
+func downloadWithRetry(ctx context.Context, client *http.Client, rawURL, dst string, expectedTotal int64, progress func(Progress)) error {
+	var lastErr error
+	for attempt := range maxRetries {
+		if attempt > 0 {
+			wait := retryBaseWait << attempt
+			select {
+			case <-ctx.Done():
+				return lastErr
+			case <-time.After(wait):
+			}
+		}
+		lastErr = downloadFile(ctx, client, rawURL, dst, expectedTotal, progress)
+		if lastErr == nil || !isRetryable(lastErr) {
+			return lastErr
+		}
+	}
+	return lastErr
+}
+
 func downloadFile(ctx context.Context, client *http.Client, rawURL string, dst string, expectedTotal int64, progress func(Progress)) (err error) {
 	if strings.TrimSpace(rawURL) == "" {
 		return errors.New("missing url")
@@ -175,7 +218,7 @@ func downloadFile(ctx context.Context, client *http.Client, rawURL string, dst s
 	}
 	defer res.Body.Close()
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return fmt.Errorf("http %d", res.StatusCode)
+		return &httpStatusError{code: res.StatusCode}
 	}
 
 	total := res.ContentLength
