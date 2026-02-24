@@ -16,6 +16,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"kotodama-kamataichi/internal/audiotag"
 	"kotodama-kamataichi/internal/tunehub"
 )
 
@@ -104,6 +105,16 @@ func (d *Downloader) DownloadSong(ctx context.Context, rootDir string, item tune
 	if err := g.Wait(); err != nil {
 		return Result{}, err
 	}
+
+	if err := audiotag.TagAudio(audioPath, coverPath, audiotag.Metadata{
+		Title:  item.Info.Name,
+		Artist: item.Info.Artist,
+		Album:  item.Info.Album,
+		Lyrics: item.Lyrics,
+	}); err != nil {
+		return Result{}, fmt.Errorf("tag audio: %w", err)
+	}
+
 	return Result{Dir: songDir, AudioPath: audioPath, CoverPath: coverPath, MetaPath: metaPath, LyricsPath: lyricsPath}, nil
 }
 
