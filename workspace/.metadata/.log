@@ -1,0 +1,50 @@
+!SESSION 2026-02-24 23:20:13.292 -----------------------------------------------
+eclipse.buildId=unknown
+java.version=21.0.9
+java.vendor=Oracle Corporation
+BootLoader constants: OS=linux, ARCH=x86_64, WS=gtk, NL=en_US
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:14.706
+!MESSAGE class org.eclipse.jdt.ls.core.internal.JavaLanguageServerPlugin is started
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:14.762
+!MESSAGE Started org.eclipse.buildship.core 36ms
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:14.762
+!MESSAGE Started org.eclipse.m2e.core 0ms
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:14.877
+!MESSAGE Main thread is waiting
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:14.916
+!MESSAGE >> initialize
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:14.917
+!MESSAGE Initializing Java Language Server 1.54.0.202511261751
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:15.587
+!MESSAGE ProjectRegistryRefreshJob finished 825ms
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:15.614
+!MESSAGE Static Commands: []
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:15.615
+!MESSAGE Non-Static Commands: [java.project.import, java.project.changeImportedProjects, java.navigate.openTypeHierarchy, java.project.resolveStackTraceLocation, java.edit.handlePasteEvent, java.edit.stringFormatting, java.project.getSettings, java.project.resolveWorkspaceSymbol, java.project.upgradeGradle, java.project.createModuleInfo, java.vm.getAllInstalls, java.edit.organizeImports, java.project.refreshDiagnostics, java.project.removeFromSourcePath, java.project.listSourcePaths, java.project.updateSettings, java.project.getAll, java.reloadBundles, java.project.isTestFile, java.project.resolveText, java.project.getClasspaths, java.navigate.resolveTypeHierarchy, java.getTroubleshootingInfo, java.edit.smartSemicolonDetection, java.project.updateSourceAttachment, java.project.updateClassPaths, java.decompile, java.protobuf.generateSources, java.project.resolveSourceAttachment, java.project.updateJdk, java.project.addToSourcePath, java.completion.onDidSelect]
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:15.628
+!MESSAGE RepositoryRegistryUpdateJob finished 1ms
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:15.639
+!MESSAGE >> initialized
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:15.726
+!MESSAGE Workspace initialized in 98ms
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:15.731
+!MESSAGE >> initialization job finished
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:15.747
+!MESSAGE >> build jobs finished
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:15.747
+!MESSAGE >> registerWatchers'
