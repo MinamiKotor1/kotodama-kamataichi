@@ -48,3 +48,59 @@ BootLoader constants: OS=linux, ARCH=x86_64, WS=gtk, NL=en_US
 
 !ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-24 23:20:15.747
 !MESSAGE >> registerWatchers'
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:19.254
+!MESSAGE >> shutdown
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:19.262
+!MESSAGE >> exit
+!SESSION 2026-02-25 02:24:25.200 -----------------------------------------------
+eclipse.buildId=unknown
+java.version=21.0.9
+java.vendor=Oracle Corporation
+BootLoader constants: OS=linux, ARCH=x86_64, WS=gtk, NL=en_US
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:26.903
+!MESSAGE class org.eclipse.jdt.ls.core.internal.JavaLanguageServerPlugin is started
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:26.973
+!MESSAGE Started org.eclipse.buildship.core 45ms
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:26.975
+!MESSAGE Started org.eclipse.m2e.core 0ms
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:27.097
+!MESSAGE Main thread is waiting
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:27.131
+!MESSAGE >> initialize
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:27.133
+!MESSAGE Initializing Java Language Server 1.54.0.202511261751
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:27.883
+!MESSAGE ProjectRegistryRefreshJob finished 907ms
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:27.924
+!MESSAGE Static Commands: []
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:27.924
+!MESSAGE Non-Static Commands: [java.project.import, java.project.changeImportedProjects, java.navigate.openTypeHierarchy, java.project.resolveStackTraceLocation, java.edit.handlePasteEvent, java.edit.stringFormatting, java.project.getSettings, java.project.resolveWorkspaceSymbol, java.project.upgradeGradle, java.project.createModuleInfo, java.vm.getAllInstalls, java.edit.organizeImports, java.project.refreshDiagnostics, java.project.removeFromSourcePath, java.project.listSourcePaths, java.project.updateSettings, java.project.getAll, java.reloadBundles, java.project.isTestFile, java.project.resolveText, java.project.getClasspaths, java.navigate.resolveTypeHierarchy, java.getTroubleshootingInfo, java.edit.smartSemicolonDetection, java.project.updateSourceAttachment, java.project.updateClassPaths, java.decompile, java.protobuf.generateSources, java.project.resolveSourceAttachment, java.project.updateJdk, java.project.addToSourcePath, java.completion.onDidSelect]
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:27.939
+!MESSAGE RepositoryRegistryUpdateJob finished 1ms
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:27.951
+!MESSAGE >> initialized
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:28.010
+!MESSAGE Workspace initialized in 72ms
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:28.013
+!MESSAGE >> initialization job finished
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:28.027
+!MESSAGE >> build jobs finished
+
+!ENTRY org.eclipse.jdt.ls.core 1 0 2026-02-25 02:24:28.028
+!MESSAGE >> registerWatchers'
