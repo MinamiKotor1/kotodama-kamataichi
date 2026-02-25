@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"runtime"
-	"syscall"
 	"time"
 
 	"github.com/dop251/goja"
@@ -128,12 +127,4 @@ func runTransform(ctx context.Context, src string, response any) (out json.RawMe
 		return nil, fmt.Errorf("transform result is not json: %w", err)
 	}
 	return b, nil
-}
-
-func setSandboxRlimits() error {
-	// Best-effort resource limits. If the environment forbids it, we still rely on
-	// the parent process timeout.
-	const cpuSecs = 2
-	_ = syscall.Setrlimit(syscall.RLIMIT_CPU, &syscall.Rlimit{Cur: cpuSecs, Max: cpuSecs})
-	return nil
 }
